@@ -1,5 +1,7 @@
 # Claude Brain
 
+[![brain lint](https://github.com/Xaviergsx/ClaudeCode-system/actions/workflows/brain-lint.yml/badge.svg)](https://github.com/Xaviergsx/ClaudeCode-system/actions/workflows/brain-lint.yml)
+
 A self-evolving markdown wiki that Claude Code maintains for you, viewable in Obsidian.
 
 Plain text instead of a vector database. You drop raw material into `raw/`; Claude reads
@@ -77,6 +79,27 @@ uningested raw files, note size, heading consistency, tag hygiene, log presence.
 Findings are `error` (breaks an invariant), `warn` (real problem, needs judgment), or
 `info` (worth knowing). The agent runs this at the end of every writing session and fixes
 what it reports.
+
+## Continuous integration
+
+`.github/workflows/brain-lint.yml` runs on every push and pull request.
+
+**Errors fail the build** — a broken wikilink, a duplicate filename, invalid frontmatter,
+a source path that doesn't exist. These break an invariant `CLAUDE.md` declares, and they
+are never correct.
+
+**Warnings do not.** An uningested raw file is a warning, and it is the expected state the
+moment you `/capture` something; so are orphans and notes not yet in the index. Gating on
+those would keep CI red during normal use. They appear in the run's job summary — a table
+of every finding with severity, location, and message — so they stay visible without
+blocking. To gate on them anyway, run the workflow manually from the Actions tab with
+**strict** checked, or add `--strict` to the `Enforce` step.
+
+A second job checks the plumbing rather than the notes: every `.obsidian/*.json` and
+`.claude/settings.json` parses, `setup.sh` is syntactically valid, and the installer is
+still idempotent — it runs it twice into a temp directory and asserts the second run
+preserved existing files.
+
 
 ## How it actually works
 

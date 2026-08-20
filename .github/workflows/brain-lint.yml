@@ -1,0 +1,132 @@
+name: brain lint
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      strict:
+        description: 'Fail on warnings as well as errors'
+        type: boolean
+        default: false
+
+concurrency:
+  group: brain-lint-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: vault structure
+    runs-on: ubuntu-latest
+    env:
+      # Errors gate the build by default. Warnings (orphans, uningested raw
+      # files, notes missing from the index) are normal mid-workflow states —
+      # they are reported in the job summary rather than failing the run.
+      # Run this workflow manually with "strict" checked to gate on them too.
+      STRICT: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.strict == 'true' && '--strict' || '' }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Report
+        run: |
+          python3 scripts/brain_lint.py --no-color || true
+          python3 scripts/brain_lint.py --json --no-color > findings.json || true
+
+      - name: Summary
+        if: always()
+        run: |
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json, pathlib, collections
+
+          path = pathlib.Path("findings.json")
+          if not path.exists():
+              print("Linter did not produce a report.")
+              raise SystemExit(0)
+
+          data = json.loads(path.read_text())
+          stats, findings = data["stats"], data["findings"]
+
+          print("## Vault\n")
+          print(f"**{stats['notes']} notes** · {stats['links']} links "
+                f"({stats['links_per_note']}/note) · {stats['raw_files']} raw · "
+                f"{stats['tags']} tags\n")
+          for label, key in (("Type", "by_type"), ("Status", "by_status")):
+              if stats[key]:
+                  parts = ", ".join(f"`{k}` {v}" for k, v in stats[key].items())
+                  print(f"{label}: {parts}\n")
+
+          counts = collections.Counter(f["severity"] for f in findings)
+          if not findings:
+              print("## Findings\n\nNone. The vault is clean.")
+              raise SystemExit(0)
+
+          summary = " · ".join(
+              f"{counts[s]} {s}" for s in ("error", "warn", "info") if counts[s]
+          )
+          print(f"## Findings\n\n{summary}\n")
+
+          icon = {"error": "🔴", "warn": "🟡", "info": "🔵"}
+          grouped = collections.defaultdict(list)
+          for f in findings:
+              grouped[f["check"]].append(f)
+
+          print("| | Check | Where | What |")
+          print("|---|---|---|---|")
+          for check in sorted(grouped):
+              for f in grouped[check]:
+                  where = f"`{f['path']}:{f['line']}`"
+                  print(f"| {icon[f['severity']]} | {check} | {where} | {f['message']} |")
+
+          if counts["error"]:
+              print("\nErrors break an invariant declared in `CLAUDE.md` and fail this run.")
+          if counts["warn"]:
+              print("\nWarnings need judgment and do not fail the run. "
+                    "Run `/tend` to work through them.")
+          PY
+
+      - name: Enforce
+        run: python3 scripts/brain_lint.py --no-color $STRICT
+
+  config:
+    name: config and scripts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate JSON config
+        run: |
+          status=0
+          for file in .obsidian/*.json .claude/settings.json; do
+            if python3 -c "import json,sys;json.load(open(sys.argv[1]))" "$file"; then
+              echo "ok    $file"
+            else
+              echo "FAIL  $file"
+              status=1
+            fi
+          done
+          exit $status
+
+      - name: Check shell scripts
+        run: |
+          bash -n scripts/setup.sh && echo "ok    scripts/setup.sh syntax"
+          shellcheck --severity=warning scripts/setup.sh || echo "note: shellcheck findings above are advisory"
+
+      - name: Verify installer is idempotent
+        run: |
+          ./scripts/setup.sh "$RUNNER_TEMP/brain-install" > /dev/null
+          ./scripts/setup.sh "$RUNNER_TEMP/brain-install" | tee second-run.log
+          if ! grep -q "already exists" second-run.log; then
+            echo "FAIL: re-running the installer did not preserve existing files"
+            exit 1
+          fi
+          echo "ok    installer preserved existing files on re-run"
+          python3 "$RUNNER_TEMP/brain-install/scripts/brain_lint.py" --no-color

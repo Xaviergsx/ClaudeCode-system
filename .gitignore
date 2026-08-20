@@ -21,3 +21,6 @@ __pycache__/
 
 # Local Claude Code overrides (settings.json itself is tracked)
 .claude/settings.local.json
+
+# CI scratch
+findings.json
