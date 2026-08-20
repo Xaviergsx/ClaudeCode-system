@@ -1,0 +1,26 @@
+# Obsidian runtime state — config is tracked, per-machine state is not
+.obsidian/workspace.json
+.obsidian/workspace-mobile.json
+.obsidian/cache
+.obsidian/graph-*.json
+.trash/
+
+# Attachments: binaries bloat the repo. Delete this if you want them versioned.
+raw/attachments/
+
+# OS and editor noise
+.DS_Store
+Thumbs.db
+*.swp
+*~
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Local Claude Code overrides (settings.json itself is tracked)
+.claude/settings.local.json
+
+# CI scratch
+findings.json

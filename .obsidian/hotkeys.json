@@ -1,0 +1,7 @@
+{
+  "graph:open": [{ "modifiers": ["Mod"], "key": "G" }],
+  "global-search:open": [{ "modifiers": ["Mod", "Shift"], "key": "F" }],
+  "templates:insert-template": [{ "modifiers": ["Mod"], "key": "T" }],
+  "random-note:open": [{ "modifiers": ["Mod", "Shift"], "key": "R" }],
+  "backlink:open": [{ "modifiers": ["Mod", "Shift"], "key": "B" }]
+}

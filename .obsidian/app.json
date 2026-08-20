@@ -1,0 +1,14 @@
+{
+  "attachmentFolderPath": "raw/attachments",
+  "newLinkFormat": "shortest",
+  "useMarkdownLinks": false,
+  "newFileLocation": "folder",
+  "newFileFolderPath": "wiki/concepts",
+  "alwaysUpdateLinks": true,
+  "showUnsupportedFiles": true,
+  "strictLineBreaks": false,
+  "readableLineLength": true,
+  "showFrontmatter": true,
+  "defaultViewMode": "preview",
+  "promptDelete": true
+}
